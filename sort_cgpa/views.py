@@ -1,10 +1,10 @@
 import tempfile
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .forms import UploadCSVFileForm
 import pandas as pd
 import os
 from itertools import zip_longest
-# Create your views here.
+
 
 from pprint import pprint
 
@@ -17,45 +17,49 @@ def handle_uploaded_file(f):
     
     return None
 
+
 def upload_file(request):
-    if request.method == 'POST':
-        form = UploadCSVFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
-                # get the uploaded files
-                cgpa_file = handle_uploaded_file(request.FILES['cgpa_file'])
-                teacher_list_file = handle_uploaded_file(request.FILES['teacher_list_file'])
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            form = UploadCSVFileForm(request.POST, request.FILES)
+            if form.is_valid():
+                try:
+                    # get the uploaded files
+                    cgpa_file = handle_uploaded_file(request.FILES['Student_File'])
+                    teacher_list_file = handle_uploaded_file(request.FILES['Teacher_File'])
 
-                # cread csv into pandas
-                cgpas = pd.read_csv(cgpa_file)
-                teachers = pd.read_csv(teacher_list_file)
+                    # cread csv into pandas
+                    cgpas = pd.read_csv(cgpa_file)
+                    teachers = pd.read_csv(teacher_list_file)
 
-                # sort by CGPA column
-                sorted_cgpa = cgpas.sort_values(by=["CGPA"], ascending=False, ignore_index=True)
+                    # sort by CGPA column
+                    sorted_cgpa = cgpas.sort_values(by=["CGPA"], ascending=False, ignore_index=True)
 
-                # add teacher for each roll
-                cgpaNteacher = assign_teachers(sorted_cgpa["Roll"].tolist(), teachers["Teachers"].tolist())
+                    # add roll and teachers
+                    cgpaNteacher = assign_teachers(sorted_cgpa["Roll"].tolist(), teachers["Teachers"].tolist())
 
-                # convert to html for the web
-                html_table = cgpaNteacher.to_html(index=False)
+                    # convert to html for the web
+                    html_table = cgpaNteacher.to_html(index=False)
 
-                # convert to csv for downloading
-                csv_content = cgpaNteacher.to_csv(index=False)
+                    # convert to csv for downloading
+                    csv_content = cgpaNteacher.to_csv(index=False)
 
-                # the next form
-                form = UploadCSVFileForm()
+                    # the next form
+                    form = UploadCSVFileForm()
 
-                # delete temporary files created by handle_uploaded_file
-                os.unlink(cgpa_file)
-                os.unlink(teacher_list_file)
+                    # delete temporary files created by handle_uploaded_file
+                    os.unlink(cgpa_file)
+                    os.unlink(teacher_list_file)
 
-                #return response
-                return render(request, 'upload_csv.html', {'form': form, 'csv_content': csv_content, 'html_table': html_table})
-            except:
-                return render(request, 'upload_csv.html', {'message': 'Incorrect input file'})
+                    #return response
+                    return render(request, 'upload_csv.html', {'form': form, 'csv_content': csv_content, 'html_table': html_table})
+                except:
+                    return render(request, 'upload_csv.html', {'message': 'Incorrect input file'})
 
-    form = UploadCSVFileForm()
-    return render(request, 'upload_csv.html', {'form': form})
+        form = UploadCSVFileForm()
+        return render(request, 'upload_csv.html', {'form': form})
+    else:
+        return redirect("accounts/login")
 
 def assign_teachers(rolls, teachers):
     teacher_length = len(teachers)
