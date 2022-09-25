@@ -63,6 +63,7 @@ def upload_file(request):
 
 def assign_teachers(rolls, teachers):
     teacher_length = len(teachers)
+    #slice_factor = teacher_length-3
 
     # slice the list according to teacher list length
     sliced_rolls = []
